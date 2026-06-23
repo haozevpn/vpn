@@ -92,6 +92,15 @@ ALTER TABLE speed_logs   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE click_logs   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
 
+-- 先删除旧策略（避免重复运行报错）
+DROP POLICY IF EXISTS "anon read airports"        ON airports;
+DROP POLICY IF EXISTS "anon read speed_logs"      ON speed_logs;
+DROP POLICY IF EXISTS "anon insert applications"  ON applications;
+DROP POLICY IF EXISTS "service all airports"      ON airports;
+DROP POLICY IF EXISTS "service all speed_logs"    ON speed_logs;
+DROP POLICY IF EXISTS "service all click_logs"    ON click_logs;
+DROP POLICY IF EXISTS "service all applications"  ON applications;
+
 -- 匿名用户可读机场基本信息（不含 sub_url / merchant 字段）
 CREATE POLICY "anon read airports"
   ON airports FOR SELECT TO anon
@@ -104,9 +113,9 @@ CREATE POLICY "anon insert applications"
   ON applications FOR INSERT TO anon WITH CHECK (TRUE);
 
 -- service_role 可以做任何操作（监测脚本用）
-CREATE POLICY "service all airports"    ON airports     FOR ALL TO service_role USING (TRUE);
-CREATE POLICY "service all speed_logs"  ON speed_logs   FOR ALL TO service_role USING (TRUE);
-CREATE POLICY "service all click_logs"  ON click_logs   FOR ALL TO service_role USING (TRUE);
+CREATE POLICY "service all airports"     ON airports     FOR ALL TO service_role USING (TRUE);
+CREATE POLICY "service all speed_logs"   ON speed_logs   FOR ALL TO service_role USING (TRUE);
+CREATE POLICY "service all click_logs"   ON click_logs   FOR ALL TO service_role USING (TRUE);
 CREATE POLICY "service all applications" ON applications FOR ALL TO service_role USING (TRUE);
 
 -- ── 站点统计辅助函数（供前端直接调用）────────────────────
