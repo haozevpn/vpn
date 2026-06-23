@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS airports (
 
   -- CPC 商家信息
   balance         NUMERIC(10,2) DEFAULT 0,
-  bid_price       NUMERIC(5,2) DEFAULT 0.60,
+  bid_price       NUMERIC(5,2) DEFAULT 0.50,
   merchant_email  TEXT UNIQUE,             -- 商家登录邮箱
   merchant_pass   TEXT DEFAULT '123456',   -- 商家简单登录密码（可以MD5或明文，配合极简登录）
 
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS click_logs (
   ua_snippet  TEXT,
   from_page   TEXT,
   charged     BOOLEAN DEFAULT TRUE,
-  amount      NUMERIC(5,2) DEFAULT 0.60
+  amount      NUMERIC(5,2) DEFAULT 0.50
 );
 
 -- ── 4. 入驻申请表 ────────────────────────────────────────
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS applications (
   price_info     TEXT,
   tag            TEXT,
   description    TEXT,
-  bid_price      NUMERIC(5,2) DEFAULT 0.60,
+  bid_price      NUMERIC(5,2) DEFAULT 0.50,
   status         TEXT DEFAULT 'pending',   -- pending / approved / rejected
   admin_note     TEXT,
   applied_at     TIMESTAMPTZ DEFAULT NOW(),
@@ -198,7 +198,7 @@ INSERT INTO airports (
   '¥8/月起',
   88.50, '+0.00', 0,
   '["today","stable","value"]',
-  0.60,
+  0.50,
   'jilian@jctuijian.com', '123456'
 ),
 
@@ -216,7 +216,7 @@ INSERT INTO airports (
   '¥7/月起',
   85.20, '+0.00', 0,
   '["today","value"]',
-  0.60,
+  0.50,
   'shun@jctuijian.com', '123456'
 ),
 
@@ -234,7 +234,7 @@ INSERT INTO airports (
   '¥15/月起',
   82.80, '+0.00', 0,
   '["today","stable"]',
-  0.60,
+  0.50,
   'bianjie@jctuijian.com', '123456'
 ),
 
@@ -252,27 +252,27 @@ INSERT INTO airports (
   '¥18/月起',
   81.30, '+0.00', 0,
   '["today","stable"]',
-  0.60,
+  0.50,
   'huanyu@jctuijian.com', '123456'
 ),
 
 -- 🔜 光年梯（待入驻）
-('guangnian','光年梯','#','#', NULL,'pending','["资料审核中"]','["blue"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.60, 'guangnian@jctuijian.com', '123456'),
+('guangnian','光年梯','#','#', NULL,'pending','["资料审核中"]','["blue"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.50, 'guangnian@jctuijian.com', '123456'),
 
 -- 🔜 影子VPN（待入驻）
-('yingzi','影子VPN','#','#', NULL,'pending','["资料审核中"]','["dark"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.60, 'yingzi@jctuijian.com', '123456'),
+('yingzi','影子VPN','#','#', NULL,'pending','["资料审核中"]','["dark"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.50, 'yingzi@jctuijian.com', '123456'),
 
 -- 🔜 山水云（待入驻）
-('shanshui','山水云','#','#', NULL,'pending','["资料审核中"]','["blue"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.60, 'shanshui@jctuijian.com', '123456'),
+('shanshui','山水云','#','#', NULL,'pending','["资料审核中"]','["blue"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.50, 'shanshui@jctuijian.com', '123456'),
 
 -- 🔜 秒秒云（待入驻）
-('miaomiao','秒秒云','#','#', NULL,'pending','["资料审核中"]','["green"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.60, 'miaomiao@jctuijian.com', '123456'),
+('miaomiao','秒秒云','#','#', NULL,'pending','["资料审核中"]','["green"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.50, 'miaomiao@jctuijian.com', '123456'),
 
 -- 🔜 锦云（待入驻）
-('jinyun','锦云','#','#', NULL,'pending','["资料审核中"]','["orange"]','即将上线','资料审核中，即将完成入驻.','--',0,'+0.00',0,'["new"]',0.60, 'jinyun@jctuijian.com', '123456'),
+('jinyun','锦云','#','#', NULL,'pending','["资料审核中"]','["orange"]','即将上线','资料审核中，即将完成入驻.','--',0,'+0.00',0,'["new"]',0.50, 'jinyun@jctuijian.com', '123456'),
 
 -- 🔜 99吧（待入驻）
-('jiuba','99吧','#','#', NULL,'pending','["资料审核中"]','["red"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.60, 'jiuba@jctuijian.com', '123456')
+('jiuba','99吧','#','#', NULL,'pending','["资料审核中"]','["red"]','即将上线','资料审核中，即将完成入驻。','--',0,'+0.00',0,'["new"]',0.50, 'jiuba@jctuijian.com', '123456')
 
 ON CONFLICT (id) DO UPDATE SET
   name          = EXCLUDED.name,

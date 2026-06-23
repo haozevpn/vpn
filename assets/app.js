@@ -595,7 +595,7 @@
             airport_id: airportId,
             from_page:  from,
             charged:    true,
-            amount:     0.60,
+            amount:     0.50,
           }),
           keepalive: true,
         }).catch(() => {});
