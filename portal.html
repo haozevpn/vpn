@@ -529,7 +529,11 @@
         body: JSON.stringify(payload)
       });
 
-      if (!resp.ok) throw new Error('该商户邮箱或ID可能已被注册');
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error('Supabase registration error:', errText);
+        throw new Error(`数据库错误: ${errText}`);
+      }
 
       alert('入驻申请提交成功！您的临时账号已创建。系统将在收到入驻费后正式开通监控。您现在可以直接登录。');
       toggleLoginApply(true);
