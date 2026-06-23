@@ -13,7 +13,7 @@
 
   // Supabase 实时数据
   const SUPABASE_URL      = 'https://jsdvhryfmuadxaijmsjb.supabase.co';
-  const SUPABASE_ANON_KEY = '';  // ⬅ 填入你的 sb_publishable_... 可发布密钥
+  const SUPABASE_ANON_KEY = 'sb_publishable_ufJ4lt-JiLS0Nh5X9X6ZHw_PE58RM1F';
 
   /* ── DOM 就绪 ─────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', async () => {
