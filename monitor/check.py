@@ -40,8 +40,13 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── 环境变量 ────────────────────────────────────────────────
-SUPABASE_URL         = os.environ["SUPABASE_URL"]
-SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]  # 用 service_role key 写入数据
+SUPABASE_URL         = os.environ["SUPABASE_URL"].strip()
+if SUPABASE_URL.endswith("/rest/v1/"):
+    SUPABASE_URL = SUPABASE_URL[:-9]
+elif SUPABASE_URL.endswith("/rest/v1"):
+    SUPABASE_URL = SUPABASE_URL[:-8]
+
+SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"].strip()
 
 # ── Supabase 客户端 ─────────────────────────────────────────
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)

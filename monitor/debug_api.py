@@ -8,11 +8,16 @@ def test_connection():
     print("=" * 60)
     
     # 1. 检查环境变量
-    url = os.environ.get("SUPABASE_URL", "")
-    anon = os.environ.get("SUPABASE_ANON_KEY", "")
-    service = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    url = os.environ.get("SUPABASE_URL", "").strip()
+    if url.endswith("/rest/v1/"):
+        url = url[:-9]
+    elif url.endswith("/rest/v1"):
+        url = url[:-8]
+        
+    anon = os.environ.get("SUPABASE_ANON_KEY", "").strip()
+    service = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
     
-    print(f"SUPABASE_URL: {url}")
+    print(f"SUPABASE_URL (已清洗): {url}")
     print(f"SUPABASE_ANON_KEY 长度: {len(anon) if anon else 0}")
     print(f"SUPABASE_SERVICE_KEY 长度: {len(service) if service else 0}")
     
