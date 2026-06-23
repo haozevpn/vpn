@@ -120,9 +120,24 @@ DROP POLICY IF EXISTS "service all applications"   ON applications;
 DROP POLICY IF EXISTS "service all recharge_orders" ON recharge_orders;
 
 -- 匿名用户可读机场基本信息（不含 sub_url / merchant 字段）
+-- 为了支持商家在 portal.html 里用邮箱密码查询登录，放宽 SELECT 权限为所有人可见
+DROP POLICY IF EXISTS "anon read airports" ON airports;
 CREATE POLICY "anon read airports"
   ON airports FOR SELECT TO anon
-  USING (status IN ('active', 'pending'));
+  USING (TRUE);
+
+-- 允许匿名用户插入新机场申请（注册）
+DROP POLICY IF EXISTS "anon insert airports" ON airports;
+CREATE POLICY "anon insert airports"
+  ON airports FOR INSERT TO anon
+  WITH CHECK (TRUE);
+
+-- 允许商户更新自己的数据（例如修改 bid_price / 账户资料）
+DROP POLICY IF EXISTS "anon update airports" ON airports;
+CREATE POLICY "anon update airports"
+  ON airports FOR UPDATE TO anon
+  USING (TRUE)
+  WITH CHECK (TRUE);
 
 CREATE POLICY "anon read speed_logs"
   ON speed_logs FOR SELECT TO anon USING (TRUE);
