@@ -188,7 +188,7 @@ def compute_score(airport_id: str, airport: dict) -> float:
 
     except Exception as e:
         log.error(f"评分计算失败 {airport_id}: {e}")
-        return 65.0  # 异常情况返回中位评分
+        return 75.0  # 异常情况返回中位评分
 
 
 # ════════════════════════════════════════════════════════════
