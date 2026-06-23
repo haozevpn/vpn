@@ -3,4 +3,4 @@ Allow: /
 Disallow: /redirect.html
 Disallow: /api/
 
-Sitemap: https://gate-rank.com/sitemap.xml
+Sitemap: https://jctuijian.com/sitemap.xml

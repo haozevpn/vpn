@@ -27,32 +27,36 @@ function replaceInFile(filePath) {
   let content = fs.readFileSync(filePath, 'utf8');
   let hasChange = false;
 
-  // Replace email
-  if (content.includes('admin@jctuijian.com')) {
-    content = content.replace(/admin@jctuijian\.com/g, 'admin@gate-rank.com');
+  // Revert email
+  if (content.includes('admin@gate-rank.com')) {
+    content = content.replace(/admin@gate-rank\.com/g, 'admin@jctuijian.com');
     hasChange = true;
   }
 
-  // Replace JcTuijian.com
-  if (content.includes('JcTuijian.com')) {
-    content = content.replace(/JcTuijian\.com/g, 'Gate-Rank.com');
+  // Revert Gate-Rank to JcTuijian
+  if (content.includes('Gate-Rank.com')) {
+    content = content.replace(/Gate-Rank\.com/g, 'JcTuijian.com');
     hasChange = true;
   }
-  if (content.includes('JcTuijian')) {
-    content = content.replace(/JcTuijian/g, 'Gate-Rank');
+  if (content.includes('Gate-Rank')) {
+    content = content.replace(/Gate-Rank/g, 'JcTuijian');
     hasChange = true;
   }
-  if (content.includes('jctuijian')) {
-    content = content.replace(/jctuijian/g, 'gate-rank');
+  if (content.includes('gate-rank.com')) {
+    content = content.replace(/gate-rank\.com/g, 'jctuijian.com');
+    hasChange = true;
+  }
+  if (content.includes('gate-rank')) {
+    content = content.replace(/gate-rank/g, 'jctuijian');
     hasChange = true;
   }
 
   if (hasChange) {
     fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`Updated: ${path.relative(targetDir, filePath)}`);
+    console.log(`Reverted: ${path.relative(targetDir, filePath)}`);
   }
 }
 
-console.log('Starting replacement process...');
+console.log('Starting reversion process...');
 walkDir(targetDir);
-console.log('Replacement finished!');
+console.log('Reversion finished!');
