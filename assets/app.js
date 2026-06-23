@@ -138,13 +138,36 @@
         { headers: { 'apikey': SUPABASE_ANON_KEY } }
       ).then(r => r.json()).catch(() => null);
 
+      // 获取最新探测日期
+      const latestLog = await fetch(
+        `${SUPABASE_URL}/rest/v1/speed_logs?select=checked_at&order=checked_at.desc&limit=1`,
+        {
+          headers: {
+            'apikey':        SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        }
+      ).then(r => r.json()).catch(() => null);
+
+      if (latestLog && latestLog.length > 0 && latestLog[0].checked_at) {
+        const d = new Date(latestLog[0].checked_at);
+        const dUtc = d.getTime() + d.getTimezoneOffset() * 60000;
+        const dBeijing = new Date(dUtc + (3600000 * 8));
+        const year = dBeijing.getFullYear();
+        const month = String(dBeijing.getMonth() + 1).padStart(2, '0');
+        const date = String(dBeijing.getDate()).padStart(2, '0');
+        if (window.SITE_STATS) {
+          window.SITE_STATS.detectDate = `${year}-${month}-${date}`;
+        }
+      }
+
       if (stats) {
         if (window.SITE_STATS) {
           window.SITE_STATS.speedTests = stats.total_checks || window.SITE_STATS.speedTests;
           window.SITE_STATS.lastUpdate = stats.last_check_ago || window.SITE_STATS.lastUpdate;
         }
-        updateStats(); // 重新渲染数字
       }
+      updateStats(); // 重新渲染数字
 
       console.info('[JCT] 已从 Supabase 同步最新评分数据');
     } catch (e) {
@@ -161,6 +184,46 @@
     if (el) el.textContent = stats.lastUpdate || '--';
     const el2 = document.getElementById('stat-update-2');
     if (el2) el2.textContent = stats.lastUpdate || '--';
+    const dateEl = document.getElementById('stat-detect-date');
+    if (dateEl) dateEl.textContent = stats.detectDate || '--';
+
+    // 动态提示条逻辑
+    const noticeContainer = document.getElementById('detect-notice-container');
+    const noticeBar = document.getElementById('detect-notice-bar');
+    const noticeText = document.getElementById('detect-notice-text');
+    if (noticeContainer && noticeText && stats.detectDate) {
+      const now = new Date();
+      const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+      const beijingTime = new Date(utcTime + (3600000 * 8));
+      const todayStr = `${beijingTime.getFullYear()}-${String(beijingTime.getMonth() + 1).padStart(2, '0')}-${String(beijingTime.getDate()).padStart(2, '0')}`;
+
+      if (stats.detectDate !== todayStr) {
+        noticeText.textContent = `${todayStr} 的公开分数尚未生成，当前展示 ${stats.detectDate} 的最新已生成快照，非实时探测结果。`;
+        if (noticeBar) {
+          noticeBar.style.borderColor = '#fcd34d';
+          noticeBar.style.backgroundColor = '#fffbeb';
+          noticeBar.style.color = '#b45309';
+          const svg = noticeBar.querySelector('svg');
+          if (svg) {
+            svg.style.color = '#d97706';
+            svg.innerHTML = '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />';
+          }
+        }
+      } else {
+        noticeText.textContent = `实时监测成功：当前已生成并展示 ${todayStr} 实时测速与可靠性评分，数据每 30 分钟自动更新。`;
+        if (noticeBar) {
+          noticeBar.style.borderColor = '#bbf7d0';
+          noticeBar.style.backgroundColor = '#f0fdf4';
+          noticeBar.style.color = '#16a34a';
+          const svg = noticeBar.querySelector('svg');
+          if (svg) {
+            svg.style.color = '#16a34a';
+            svg.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />';
+          }
+        }
+      }
+      noticeContainer.style.display = 'block';
+    }
   }
 
   function animateNumber(id, target) {

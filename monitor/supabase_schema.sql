@@ -142,6 +142,11 @@ DROP POLICY IF EXISTS "anon insert promotions"     ON promotions;
 DROP POLICY IF EXISTS "anon update promotions"     ON promotions;
 DROP POLICY IF EXISTS "service all promotions"     ON promotions;
 
+DROP POLICY IF EXISTS "anon delete airports"       ON airports;
+DROP POLICY IF EXISTS "anon update recharge_orders" ON recharge_orders;
+DROP POLICY IF EXISTS "anon delete recharge_orders" ON recharge_orders;
+DROP POLICY IF EXISTS "anon delete promotions"      ON promotions;
+
 -- 匿名用户可读机场基本信息（不含 sub_url / merchant 字段）
 -- 为了支持商家在 portal.html 里用邮箱密码查询登录，放宽 SELECT 权限为所有人可见
 DROP POLICY IF EXISTS "anon read airports" ON airports;
@@ -162,6 +167,10 @@ CREATE POLICY "anon update airports"
   USING (TRUE)
   WITH CHECK (TRUE);
 
+-- 允许管理员删除机场记录
+CREATE POLICY "anon delete airports"
+  ON airports FOR DELETE TO anon USING (TRUE);
+
 CREATE POLICY "anon read speed_logs"
   ON speed_logs FOR SELECT TO anon USING (TRUE);
 
@@ -175,10 +184,18 @@ CREATE POLICY "anon insert recharge_orders"
 CREATE POLICY "anon read recharge_orders"
   ON recharge_orders FOR SELECT TO anon USING (TRUE);
 
+-- 允许管理员确认支付更新订单状态与删除订单
+CREATE POLICY "anon update recharge_orders"
+  ON recharge_orders FOR UPDATE TO anon USING (TRUE) WITH CHECK (TRUE);
+
+CREATE POLICY "anon delete recharge_orders"
+  ON recharge_orders FOR DELETE TO anon USING (TRUE);
+
 -- 优惠活动广告策略
 CREATE POLICY "anon read promotions"       ON promotions FOR SELECT TO anon USING (TRUE);
 CREATE POLICY "anon insert promotions"     ON promotions FOR INSERT TO anon WITH CHECK (TRUE);
 CREATE POLICY "anon update promotions"     ON promotions FOR UPDATE TO anon USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "anon delete promotions"     ON promotions FOR DELETE TO anon USING (TRUE);
 
 -- service_role 可以做任何操作（监测脚本用）
 CREATE POLICY "service all airports"        ON airports        FOR ALL TO service_role USING (TRUE);

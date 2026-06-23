@@ -130,9 +130,22 @@
       <div class="hero-stat">
         报告更新：<strong><span id="stat-update">--</span></strong>
       </div>
+      <div class="hero-stat">
+        探测日期：<strong><span id="stat-detect-date">--</span></strong>
+      </div>
     </div>
   </div>
 </section>
+
+<!-- 监测提示条 -->
+<div class="container" id="detect-notice-container" style="margin-top: 24px; margin-bottom: -8px; display: none;">
+  <div id="detect-notice-bar" style="display: flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 9999px; font-size: 0.9rem; font-weight: 500; border: 1px solid #fcd34d; background-color: #fffbeb; color: #b45309; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); flex-wrap: wrap;">
+    <svg viewBox="0 0 20 20" fill="currentColor" style="width: 18px; height: 18px; flex-shrink: 0; color: #d97706;">
+      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+    </svg>
+    <span id="detect-notice-text">--</span>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════
      分类 Tab 栏

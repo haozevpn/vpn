@@ -217,8 +217,14 @@ window.CATEGORIES = [
 ];
 
 // ── 站点统计 ──────────────────────────────────────────────
+const _d = new Date();
+const _year = _d.getFullYear();
+const _month = String(_d.getMonth() + 1).padStart(2, '0');
+const _date = String(_d.getDate()).padStart(2, '0');
+
 window.SITE_STATS = {
   monitored: 10,
   speedTests: 1240,
   lastUpdate: "刚刚更新",
+  detectDate: `${_year}-${_month}-${_date}`,
 };
