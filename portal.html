@@ -772,8 +772,9 @@
         <button class="btn-action" style="width:100%" type="submit" id="btn-login-submit">立即登录</button>
       </form>
       
-      <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; border-top: 1px solid #f1f5f9; padding-top: 16px; color:#64748b;">
-        新商户？ <a href="#" style="color:#0ea5e9; font-weight:700; text-decoration:none;" onclick="toggleLoginApply(false)">申请入驻测试本站 →</a>
+      <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; border-top: 1px solid #f1f5f9; padding-top: 16px; color:#64748b; display: flex; flex-direction: column; gap: 8px;">
+        <div>新商户？ <a href="#" style="color:#0ea5e9; font-weight:700; text-decoration:none;" onclick="toggleLoginApply(false)">申请入驻测试本站 →</a></div>
+        <div style="margin-top: 4px;"><a href="index.html" style="color:#64748b; font-weight:600; text-decoration:none; display: inline-flex; align-items: center; gap: 4px;">← 返回主站首页</a></div>
       </div>
     </div>
   </div>
@@ -820,8 +821,9 @@
         <button class="btn-action" style="width:100%; margin-top:24px;" type="submit" id="btn-apply-submit">提交入驻申请</button>
       </form>
       
-      <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; border-top: 1px solid #f1f5f9; padding-top: 16px; color:#64748b;">
-        已有账号？ <a href="#" style="color:#0ea5e9; font-weight:700; text-decoration:none;" onclick="toggleLoginApply(true)">立即登录面板 →</a>
+      <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; border-top: 1px solid #f1f5f9; padding-top: 16px; color:#64748b; display: flex; flex-direction: column; gap: 8px;">
+        <div>已有账号？ <a href="#" style="color:#0ea5e9; font-weight:700; text-decoration:none;" onclick="toggleLoginApply(true)">立即登录面板 →</a></div>
+        <div style="margin-top: 4px;"><a href="index.html" style="color:#64748b; font-weight:600; text-decoration:none; display: inline-flex; align-items: center; gap: 4px;">← 返回主站首页</a></div>
       </div>
     </div>
   </div>
@@ -868,6 +870,9 @@
         <div class="menu-item" id="menu-password" onclick="switchTab('tab-password')">
           <span>🔒</span> 账号设置
         </div>
+        <div class="menu-item" onclick="window.location.href='index.html'" style="margin-top: 12px; border-top: 1px dashed #e2e8f0; border-radius: 0; padding-top: 12px; color: #64748b;">
+          <span>🏠</span> 返回主站首页
+        </div>
       </nav>
       
       <!-- 侧边栏底部 -->
@@ -882,9 +887,18 @@
       <!-- 顶栏状态与标题 -->
       <header class="main-header">
         <div class="main-header-title" id="console-header-title">账户概览</div>
-        <div>
-          <span style="font-size: 0.8rem; color:#64748b; font-weight:600; margin-right: 8px;">监控与展现状态:</span>
-          <span class="badge-status active" id="merchant-status">运行中</span>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <a href="index.html" 
+             style="background: #f8fafc; color: #475569; border: 1.5px solid #e2e8f0; padding: 7px 16px; font-size: 0.82rem; font-weight: 700; border-radius: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; cursor: pointer;"
+             onmouseover="this.style.borderColor='#cbd5e1'; this.style.background='#f1f5f9'; this.style.color='#0f172a'; this.style.transform='translateY(-1px)';"
+             onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'; this.style.color='#475569'; this.style.transform='translateY(0)';"
+             onmousedown="this.style.transform='translateY(0)';">
+            🏠 返回首页
+          </a>
+          <div style="display: flex; align-items: center;">
+            <span style="font-size: 0.8rem; color:#64748b; font-weight:600; margin-right: 8px;">监控与展现状态:</span>
+            <span class="badge-status active" id="merchant-status">运行中</span>
+          </div>
         </div>
       </header>
 

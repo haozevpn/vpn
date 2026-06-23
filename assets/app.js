@@ -285,90 +285,74 @@
           }
         );
         if (resp.ok) {
-          dbPromos = await resp.json();
-          // 过滤掉本地判断已过期的数据
-          dbPromos = dbPromos.filter(item => new Date(item.expires_at) >= new Date());
+          const rawData = await resp.json();
+          if (Array.isArray(rawData)) {
+            dbPromos = rawData.filter(item => {
+              if (!item || !item.expires_at) return false;
+              try {
+                const exp = new Date(item.expires_at);
+                return !isNaN(exp.getTime()) && exp >= new Date();
+              } catch (e) {
+                return false;
+              }
+            });
+          }
         }
       }
     } catch (e) {
       console.warn('[JCT] 拉取动态优惠失败，将降级使用本地预设优惠', e);
     }
 
-    if (!dbPromos || dbPromos.length === 0) {
-      // 静态/本地 fallback 优惠活动列表
-      grid.innerHTML = `
-        <div class="promo-list" style="grid-column: 1 / -1;">
-          <div class="promo-card">
-            <span class="promo-badge">九折特惠</span>
-            <div class="promo-airport-name">极连云</div>
-            <div class="promo-title">2026年中专属折扣码</div>
-            <div class="promo-code-wrap">
-              <span class="promo-code">jilian90</span>
-              <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('jilian90').then(() => alert('折扣码已复制！'))">复制</button>
-            </div>
-            <p class="promo-desc">适用于所有IEPL专线季付及以上套餐，极连云晚高峰稳定不跑路，流媒体全解锁。</p>
-          </div>
-
-          <div class="promo-card">
-            <span class="promo-badge">首单立减</span>
-            <div class="promo-airport-name">瞬云</div>
-            <div class="promo-title">新用户注册专享优惠</div>
-            <div class="promo-code-wrap">
-              <span class="promo-code">shun_new</span>
-              <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('shun_new').then(() => alert('折扣码已复制！'))">复制</button>
-            </div>
-            <p class="promo-desc">新注册用户首次订阅任意 Anycast 高速节点套餐可享受立减 5 元优惠，直连中转无倍率。</p>
-          </div>
-
-          <div class="promo-card">
-            <span class="promo-badge">年付8折</span>
-            <div class="promo-airport-name">边界云</div>
-            <div class="promo-title">年付计划专享折扣</div>
-            <div class="promo-code-wrap">
-              <span class="promo-code">bianjie80</span>
-              <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('bianjie80').then(() => alert('折扣码已复制！'))">复制</button>
-            </div>
-            <p class="promo-desc">购买任意专属 IEPL 优化线路年付套餐，使用此码可立享八折特惠，支持主流流媒体。</p>
-          </div>
-
-          <div class="promo-card">
-            <span class="promo-badge">限时好礼</span>
-            <div class="promo-airport-name">寰宇云</div>
-            <div class="promo-title">AnyTLS 尝鲜体验折扣</div>
-            <div class="promo-code-wrap">
-              <span class="promo-code">huanyu_anytls</span>
-              <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('huanyu_anytls').then(() => alert('折扣码已复制！'))">复制</button>
-            </div>
-            <p class="promo-desc">体验最新 AnyTLS 协议高安全节点，首月订阅使用该优惠码立享 8.5 折。</p>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    // 动态渲染获取到的 promotions
+    // Always render exactly 6 slots in the deals grid.
     let html = '<div class="promo-list" style="grid-column: 1 / -1;">';
-    dbPromos.forEach(item => {
-      const airportName = item.airports ? item.airports.name : '未知机场';
-      const pctBadge = item.discount_pct > 0 ? `${(10 - (item.discount_pct / 10)).toFixed(1)}折特惠` : '优惠活动';
-      const codeEsc = escHtml(item.promo_code);
-      html += `
-        <div class="promo-card">
-          <span class="promo-badge">${escHtml(pctBadge)}</span>
-          <div class="promo-airport-name">${escHtml(airportName)}</div>
-          <div class="promo-title">${escHtml(item.title)}</div>
-          <div class="promo-code-wrap">
-            <span class="promo-code">${codeEsc}</span>
-            <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('${codeEsc}').then(() => alert('折扣码已复制！'))">复制</button>
+    for (let index = 0; index < 6; index++) {
+      if (index < dbPromos.length) {
+        const item = dbPromos[index];
+        // 容错机制：尝试从 airports 字段中取 name；如果为空，则使用本地 window.AIRPORTS_DATA 对齐或机场 id
+        let airportName = '';
+        if (item.airports && item.airports.name) {
+          airportName = item.airports.name;
+        }
+        if (!airportName) {
+          const local = (window.AIRPORTS_DATA || []).find(a => a.id === item.airport_id);
+          if (local && local.name) {
+            airportName = local.name;
+          }
+        }
+        if (!airportName) {
+          airportName = item.airport_id || '合作商户';
+        }
+
+        const pctBadge = item.discount_pct > 0 ? `${(10 - (item.discount_pct / 10)).toFixed(1)}折特惠` : '优惠活动';
+        const codeEsc = escHtml(item.promo_code);
+        html += `
+          <div class="promo-card">
+            <span class="promo-badge">${escHtml(pctBadge)}</span>
+            <div class="promo-airport-name">${escHtml(airportName)}</div>
+            <div class="promo-title">${escHtml(item.title)}</div>
+            <div class="promo-code-wrap">
+              <span class="promo-code">${codeEsc}</span>
+              <button class="promo-copy-btn" onclick="navigator.clipboard.writeText('${codeEsc}').then(() => alert('折扣码已复制！'))">复制</button>
+            </div>
+            <p class="promo-desc">${escHtml(item.description)}</p>
+            <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:12px; display:flex; justify-content:space-between; border-top: 1px dashed var(--color-border); padding-top:10px;">
+              <span>适用套餐: ${escHtml(item.packages || '全部套餐')}</span>
+              <span>有效期至: ${new Date(item.expires_at).toLocaleDateString('zh-CN')}</span>
+            </div>
           </div>
-          <p class="promo-desc">${escHtml(item.description)}</p>
-          <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:12px; display:flex; justify-content:space-between; border-top: 1px dashed var(--color-border); padding-top:10px;">
-            <span>适用套餐: ${escHtml(item.packages || '全部套餐')}</span>
-            <span>有效期至: ${new Date(item.expires_at).toLocaleDateString('zh-CN')}</span>
+        `;
+      } else {
+        html += `
+          <div class="promo-card empty-promo-card">
+            <div style="font-size: 2.2rem; filter: grayscale(1); opacity: 0.65; margin-bottom: 8px;">🎁</div>
+            <div class="empty-promo-title">虚位以待</div>
+            <p style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 8px; line-height: 1.5;">
+              该广告位空闲中<br/>商户可在控制台自助投放广告上架
+            </p>
           </div>
-        </div>
-      `;
-    });
+        `;
+      }
+    }
     html += '</div>';
     grid.innerHTML = html;
   }
