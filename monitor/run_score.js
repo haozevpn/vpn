@@ -162,7 +162,11 @@ function computeScore(airport, logs) {
   const speedScore = computeSpeedScore(hasLogs ? logs : [], airportId);
 
   // ── 4. 运营稳定性 (12分) ────────────────────────────────
-  const daysOnline = airport.days_online || 0;
+  // 运营天数：优先从 created_at 自动计算，fallback 到存储值
+  const createdAt   = airport.created_at ? new Date(airport.created_at) : null;
+  const daysOnline  = createdAt
+    ? Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)))
+    : (airport.days_online || 0);
   //   基础 8分 + 运营天数加成（最高4分，180天满），+ 哈希小扰动（±0~1分）
   const daysBonus     = Math.min(4.0, daysOnline / 180.0 * 4.0);
   const hashNoise     = stableHashFloat(airportId + '_rep', 0, 1.2);
@@ -199,6 +203,7 @@ function computeScore(airport, logs) {
     priceScore,
     tagScore,
     reputScore,
+    daysOnline,
     logCount: logs ? logs.length : 0,
   };
 }
@@ -211,7 +216,7 @@ async function main() {
 
   // 1. 读取所有 active 机场（含 score / price / tags 字段）
   const airports = await supabaseGet(
-    'airports?select=id,name,days_online,category,score,price,tags&status=eq.active'
+    'airports?select=id,name,days_online,category,score,price,tags,created_at&status=eq.active'
   );
   log(`共发现 ${airports.length} 个已激活机场`);
 
@@ -227,8 +232,8 @@ async function main() {
   let errorCount   = 0;
 
   log('');
-  log('  机场名称         评分      变化    官网可用  订阅可用  速度分  价格分  样本数');
-  log('  ' + '-'.repeat(80));
+  log('  机场名称         评分      变化    天数   官网可用  订阅可用  速度分  价格分  样本数');
+  log('  ' + '-'.repeat(88));
 
   for (const airport of airports) {
     try {
@@ -238,13 +243,14 @@ async function main() {
       );
 
       // 4. 计算评分
-      const { newScore, deltaStr, webAvailRate, subAvailRate, speedScore, priceScore, logCount } =
+      const { newScore, deltaStr, webAvailRate, subAvailRate, speedScore, priceScore, daysOnline, logCount } =
         computeScore(airport, logs);
 
-      // 5. 写回数据库
+      // 5. 写回数据库（含更新 days_online）
       await supabasePatch('airports', airport.id, {
         score:       newScore,
         score_delta: deltaStr,
+        days_online: daysOnline,
         updated_at:  new Date().toISOString(),
       });
 
@@ -255,6 +261,7 @@ async function main() {
       log(
         `  ${arrow} ${(airport.name || airport.id).padEnd(12)}` +
         `  ${newScore.toFixed(2).padStart(5)}  (${deltaStr.padStart(7)})` +
+        `  ${String(daysOnline).padStart(3)}天` +
         `  官网:${(webAvailRate * 100).toFixed(0).padStart(3)}%` +
         `  订阅:${(subAvailRate * 100).toFixed(0).padStart(3)}%` +
         `  速度:${speedScore.toFixed(1).padStart(4)}` +
@@ -269,7 +276,7 @@ async function main() {
     }
   }
 
-  log('  ' + '-'.repeat(80));
+  log('  ' + '-'.repeat(88));
   log('');
   log('='.repeat(65));
   log(`  完成：${successCount} 成功，${errorCount} 失败`);

@@ -117,7 +117,11 @@ function computeScore(airport, logs) {
 
   const speedScore = computeSpeedScore(hasLogs ? logs : [], airportId);
 
-  const daysOnline = airport.days_online || 0;
+  // 运营天数：优先从 created_at 自动计算，fallback 到存储值
+  const createdAt  = airport.created_at ? new Date(airport.created_at) : null;
+  const daysOnline = createdAt
+    ? Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)))
+    : (airport.days_online || 0);
   const daysBonus  = Math.min(4.0, daysOnline / 180.0 * 4.0);
   const hashNoise  = stableHashFloat(airportId + '_rep', 0, 1.2);
   const reputScore = Math.min(12.0, 8.0 + daysBonus + hashNoise);
@@ -133,14 +137,14 @@ function computeScore(airport, logs) {
   const oldScore = parseFloat(airport.score) || 75.0;
   const delta    = Math.round((newScore - oldScore) * 100) / 100;
   const deltaStr = delta > 0 ? `+${delta.toFixed(2)}` : delta < 0 ? delta.toFixed(2) : '+0.00';
-  return { newScore, deltaStr, webAvailRate, subAvailRate };
+  return { newScore, deltaStr, webAvailRate, subAvailRate, daysOnline };
 }
 
 async function main() {
   // ── STEP 1: 读取所有 active 机场 ─────────────────────────
   log('读取数据库中的机场列表...');
   const resp = await fetch(
-    `${SUPABASE_URL}/rest/v1/airports?select=id,name,website_url,sub_url,days_online,category,score,price,tags&status=eq.active`,
+    `${SUPABASE_URL}/rest/v1/airports?select=id,name,website_url,sub_url,days_online,category,score,price,tags,created_at&status=eq.active`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   );
   const airports = await resp.json();
@@ -192,14 +196,14 @@ async function main() {
     );
     const logs = await logsResp.json();
 
-    const { newScore, deltaStr, webAvailRate, subAvailRate } = computeScore(airport, logs);
+    const { newScore, deltaStr, webAvailRate, subAvailRate, daysOnline } = computeScore(airport, logs);
 
     await fetch(
       `${SUPABASE_URL}/rest/v1/airports?id=eq.${airport.id}`,
       {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ score: newScore, score_delta: deltaStr, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ score: newScore, score_delta: deltaStr, days_online: daysOnline, updated_at: new Date().toISOString() })
       }
     );
 
@@ -207,6 +211,7 @@ async function main() {
     log(
       `  ${arrow} ${(airport.name || airport.id).padEnd(12)} ` +
       `评分: ${newScore.toFixed(2).padStart(5)} (${deltaStr})  ` +
+      `天数: ${String(daysOnline).padStart(3)}天  ` +
       `官网: ${(webAvailRate*100).toFixed(0).padStart(3)}%  ` +
       `订阅: ${(subAvailRate*100).toFixed(0).padStart(3)}%  ` +
       `样本: ${Array.isArray(logs) ? logs.length : 0}`

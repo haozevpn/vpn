@@ -223,7 +223,17 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         speed_score = _compute_speed_score(rows if has_logs else [], airport_id)
 
         # ── 4. 运营稳定性 (12分) ────────────────────────────
-        days_online  = airport.get("days_online") or 0
+        # 运营天数：优先从 created_at 自动计算，fallback 到存储值
+        created_at_str = airport.get("created_at")
+        if created_at_str:
+            from dateutil.parser import parse as parse_dt
+            try:
+                created_dt = parse_dt(created_at_str)
+                days_online = max(0, (datetime.now(timezone.utc) - created_dt).days)
+            except Exception:
+                days_online = airport.get("days_online") or 0
+        else:
+            days_online  = airport.get("days_online") or 0
         days_bonus   = min(4.0, days_online / 180.0 * 4.0)
         hash_noise   = _stable_hash_float(airport_id + "_rep", 0.0, 1.2)
         reput_score  = min(12.0, 8.0 + days_bonus + hash_noise)
@@ -261,15 +271,15 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         no_data_flag = "[初始]" if not has_logs else ""
         log.info(
             f"  {airport_id}: 评分 {new_score:.2f} ({delta_str})  "
-            f"官网:{web_avail_rate:.0%}  订阅:{sub_avail_rate:.0%}  "
+            f"天数:{days_online}天  官网:{web_avail_rate:.0%}  订阅:{sub_avail_rate:.0%}  "
             f"速度:{speed_score:.1f}  价格:{price_score:.1f}  标签:{tag_score:.1f}  "
             f"样本:{len(rows)} {no_data_flag}"
         )
-        return new_score, delta_str
+        return new_score, delta_str, days_online
 
     except Exception as e:
         log.error(f"评分计算失败 {airport_id}: {e}", exc_info=True)
-        return 75.0, "+0.00"
+        return 75.0, "+0.00", 0
 
 
 # ════════════════════════════════════════════════════════════
@@ -283,7 +293,7 @@ async def main():
     # ── 从数据库读取待监测的机场列表（包含 score 字段用于计算 delta）
     airports = (
         supabase.table("airports")
-        .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags")
+        .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags, created_at")
         .eq("status", "active")
         .execute()
         .data
@@ -323,13 +333,14 @@ async def main():
 
     # ── 重新计算并更新每个机场评分 ───────────────────────────
     for airport in airports:
-        new_score, delta_str = compute_score(airport["id"], airport)
+        new_score, delta_str, days_online = compute_score(airport["id"], airport)
         supabase.table("airports").update({
             "score":       new_score,
             "score_delta": delta_str,
+            "days_online": days_online,
             "updated_at":  datetime.now(timezone.utc).isoformat(),
         }).eq("id", airport["id"]).execute()
-        log.info(f"  SCORE {airport['name']:12s}  {new_score}  ({delta_str})")
+        log.info(f"  SCORE {airport['name']:12s}  {new_score}  ({delta_str})  天数:{days_online}")
 
     log.info("=" * 60)
     log.info("  监测完成")
