@@ -256,8 +256,8 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         if "risk" in category:
             raw_score = max(0.0, raw_score - 50.0)
 
-        # 压缩到 62~95 区间
-        new_score = round(62.0 + raw_score * 0.33, 2)
+        # 压缩到 58~92 区间（90分以上需要长期高质量运营才能达到）
+        new_score = round(58.0 + raw_score * 0.34, 2)
 
         old_score = float(airport.get("score") or 75.0)
         delta     = new_score - old_score

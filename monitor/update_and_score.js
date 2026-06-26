@@ -133,7 +133,7 @@ function computeScore(airport, logs) {
   const category = Array.isArray(airport.category) ? airport.category : [];
   if (category.includes('risk')) rawScore = Math.max(0, rawScore - 50);
 
-  const newScore = Math.round((62.0 + rawScore * 0.33) * 100) / 100;
+  const newScore = Math.round((58.0 + rawScore * 0.34) * 100) / 100;
   const oldScore = parseFloat(airport.score) || 75.0;
   const delta    = Math.round((newScore - oldScore) * 100) / 100;
   const deltaStr = delta > 0 ? `+${delta.toFixed(2)}` : delta < 0 ? delta.toFixed(2) : '+0.00';
