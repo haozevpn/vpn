@@ -109,27 +109,85 @@ async def check_airport(client: httpx.AsyncClient, airport: dict) -> dict:
 
 
 # ════════════════════════════════════════════════════════════
-#  评分计算
+#  评分计算（v2 多维差异化评分）
 # ════════════════════════════════════════════════════════════
+
+def _stable_hash_float(s: str, lo: float, hi: float) -> float:
+    """基于FNV-1a哈希将字符串确定性映射到 [lo, hi] 区间，用于新机场初始锚点。"""
+    h = 2166136261
+    for c in s.encode():
+        h ^= c
+        h = (h * 16777619) & 0xFFFFFFFF
+    return lo + (h % 10000) / 10000.0 * (hi - lo)
+
+
+def _compute_speed_score(rows: list, airport_id: str) -> float:
+    """响应速度得分（满分15）：基于平均延迟 website_ms。"""
+    valid_ms = [r["website_ms"] for r in rows
+                if r.get("website_ms") is not None and r["website_ms"] > 0]
+    if not valid_ms:
+        return _stable_hash_float(airport_id + "_speed", 6.0, 12.0)
+    avg_ms = sum(valid_ms) / len(valid_ms)
+    if avg_ms <= 300:   return 15.0
+    if avg_ms <= 600:   return 15.0 - (avg_ms - 300) / 300 * 5.0
+    if avg_ms <= 1200:  return 10.0 - (avg_ms - 600) / 600 * 5.0
+    return max(2.0, 5.0 - (avg_ms - 1200) / 1000 * 3.0)
+
+
+def _parse_price(price_str: str) -> float | None:
+    """从价格字符串（如 '¥8/月起'）解析月付金额。"""
+    import re
+    if not price_str or price_str == '--':
+        return None
+    m = re.search(r'¥\s*(\d+(?:\.\d+)?)', price_str)
+    return float(m.group(1)) if m else None
+
+
+def _compute_price_score(price_str: str, airport_id: str) -> float:
+    """价格竞争力得分（满分5）。"""
+    price = _parse_price(price_str)
+    if price is None:
+        return _stable_hash_float(airport_id + "_price", 1.5, 3.0)
+    if price <= 8:   return 5.0
+    if price <= 15:  return 5.0 - (price - 8) / 7 * 2.0
+    if price <= 30:  return 3.0 - (price - 15) / 15 * 2.0
+    return 0.5
+
+
+def _compute_tag_score(tags) -> float:
+    """线路质量标签加分（满分3）。"""
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except Exception:
+            tags = []
+    tag_list = tags if isinstance(tags, list) else []
+    bonus = 0.0
+    premium = ['IEPL', 'CN2']
+    medium  = ['直连中转', '多线BGP', 'AnyTLS', '无倍率']
+    if any(any(p in t for p in premium) for t in tag_list):
+        bonus += 1.5
+    elif any(any(m in t for m in medium) for t in tag_list):
+        bonus += 0.8
+    if any('流媒' in t for t in tag_list):
+        bonus += 0.5
+    if any('晚高峰' in t or '稳定' in t for t in tag_list):
+        bonus += 0.5
+    return min(3.0, bonus)
+
+
 def compute_score(airport_id: str, airport: dict) -> tuple:
     """
-    从数据库读取近30天的检测记录，计算可靠性评分（0-100）。
-    返回 (new_score: float, score_delta_str: str) 元组。
-
-    评分维度：
-      1. 订阅可用率 (50%)
-      2. 官网可用率 (30%)
-      3. 运营天数与信誉 (20%)
-    并对最终得分进行向中心压缩（0-100 映射至 45-90）以避免极端值。
-
-    关键修复：
-      原代码用 .gte("checked_at", "now() - interval '30 days'") 传 SQL 表达式，
-      Supabase Python SDK 的 .gte() 只接受字面值，SQL 表达式会导致查询异常，
-      触发兜底 return 75.0，因此所有机场评分永远是 75。
-      修复方法：用 Python datetime 计算 30 天前的 ISO 字符串传入。
+    多维差异化评分（v2）：
+      1. 订阅可用率  (40分)
+      2. 官网可用率  (25分)
+      3. 响应速度    (15分)
+      4. 运营稳定性  (12分)
+      5. 价格竞争力  ( 5分)
+      6. 线路质量标签( 3分)
+    最终压缩到 62~95 区间。新机场无日志时用ID哈希锚点代替满分默认值，避免全场同分。
     """
     try:
-        # ✅ 用 Python 计算 30 天前的 ISO 时间字符串（而非 SQL 表达式）
         cutoff_time = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
         rows = (
@@ -141,43 +199,44 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
             .data
         )
 
-        if not rows:
-            # 没有历史数据时，给定满可用率（新入驻机场）
-            web_avail_rate = 1.0
-            sub_avail_rate = 1.0
-            log.info(f"  {airport_id}: 暂无历史记录，使用默认可用率 100%")
+        has_logs = bool(rows and len(rows) >= 3)
+
+        # ── 1. 订阅可用率 (40分) ────────────────────────────
+        if not has_logs:
+            sub_avail_rate = _stable_hash_float(airport_id + "_sub", 0.88, 0.98)
         else:
-            total_rows   = len(rows)
-            web_ok_count = sum(1 for r in rows if r["website_ok"])
-            web_avail_rate = web_ok_count / total_rows
-
             sub_rows = [r for r in rows if r.get("sub_ok") is not None]
-            if sub_rows:
-                sub_ok_count   = sum(1 for r in sub_rows if r["sub_ok"])
-                sub_avail_rate = sub_ok_count / len(sub_rows)
+            if len(sub_rows) >= 2:
+                sub_avail_rate = sum(1 for r in sub_rows if r["sub_ok"]) / len(sub_rows)
             else:
-                sub_avail_rate = 1.0  # 若没有拉取过订阅，默认为100%
+                sub_avail_rate = _stable_hash_float(airport_id + "_sub", 0.88, 0.98)
+        sub_score = sub_avail_rate * 40.0
 
-            log.info(
-                f"  {airport_id}: {total_rows} 条记录，"
-                f"官网可用率 {web_avail_rate:.1%}，"
-                f"订阅可用率 {sub_avail_rate:.1%}"
-            )
+        # ── 2. 官网可用率 (25分) ────────────────────────────
+        if not has_logs:
+            web_avail_rate = _stable_hash_float(airport_id + "_web", 0.92, 1.0)
+        else:
+            web_avail_rate = sum(1 for r in rows if r["website_ok"]) / len(rows)
+        web_score = web_avail_rate * 25.0
 
-        # 1. 订阅可用率得分 (满分 50)
-        sub_score = sub_avail_rate * 50.0
+        # ── 3. 响应速度 (15分) ──────────────────────────────
+        speed_score = _compute_speed_score(rows if has_logs else [], airport_id)
 
-        # 2. 官网可用率得分 (满分 30)
-        web_score = web_avail_rate * 30.0
+        # ── 4. 运营稳定性 (12分) ────────────────────────────
+        days_online  = airport.get("days_online") or 0
+        days_bonus   = min(4.0, days_online / 180.0 * 4.0)
+        hash_noise   = _stable_hash_float(airport_id + "_rep", 0.0, 1.2)
+        reput_score  = min(12.0, 8.0 + days_bonus + hash_noise)
 
-        # 3. 运营天数与信誉得分 (满分 20)
-        days_online = airport.get("days_online") or 0
-        # 基础信誉分 18.0，每上线 1 天加 2/180 分，满 180 天得满分 20.0
-        reputation_score = 18.0 + min(2.0, days_online / 180.0 * 2.0)
+        # ── 5. 价格竞争力 (5分) ─────────────────────────────
+        price_score = _compute_price_score(airport.get("price", ""), airport_id)
 
-        raw_score = sub_score + web_score + reputation_score
+        # ── 6. 线路质量标签 (3分) ───────────────────────────
+        tag_score = _compute_tag_score(airport.get("tags", []))
 
-        # 扣分规则：如果属于风险预警类别 (category 包含 "risk")，扣减 50 分
+        raw_score = sub_score + web_score + speed_score + reput_score + price_score + tag_score
+
+        # 扣分：风险预警
         category = airport.get("category") or []
         if isinstance(category, str):
             try:
@@ -187,10 +246,9 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         if "risk" in category:
             raw_score = max(0.0, raw_score - 50.0)
 
-        # 向中心压缩分值：raw_score (0~100) -> final_score (45~90)
-        new_score = round(45.0 + (raw_score * 0.45), 2)
+        # 压缩到 62~95 区间
+        new_score = round(62.0 + raw_score * 0.33, 2)
 
-        # 计算与上次的变化量
         old_score = float(airport.get("score") or 75.0)
         delta     = new_score - old_score
         if delta > 0:
@@ -200,11 +258,18 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         else:
             delta_str = "+0.00"
 
+        no_data_flag = "[初始]" if not has_logs else ""
+        log.info(
+            f"  {airport_id}: 评分 {new_score:.2f} ({delta_str})  "
+            f"官网:{web_avail_rate:.0%}  订阅:{sub_avail_rate:.0%}  "
+            f"速度:{speed_score:.1f}  价格:{price_score:.1f}  标签:{tag_score:.1f}  "
+            f"样本:{len(rows)} {no_data_flag}"
+        )
         return new_score, delta_str
 
     except Exception as e:
         log.error(f"评分计算失败 {airport_id}: {e}", exc_info=True)
-        return 75.0, "+0.00"  # 异常情况返回中位评分
+        return 75.0, "+0.00"
 
 
 # ════════════════════════════════════════════════════════════
@@ -218,7 +283,7 @@ async def main():
     # ── 从数据库读取待监测的机场列表（包含 score 字段用于计算 delta）
     airports = (
         supabase.table("airports")
-        .select("id, name, website_url, sub_url, status, days_online, category, score")
+        .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags")
         .eq("status", "active")
         .execute()
         .data
