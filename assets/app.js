@@ -132,6 +132,10 @@
         local.risk       = row.status === 'risk' || (row.category && row.category.includes('risk')) ? 'high' : null;
       });
 
+      if (window.SITE_STATS) {
+        window.SITE_STATS.monitored = rows.length;
+      }
+
       // 更新统计数字
       const stats = await fetch(
         `${SUPABASE_URL}/rest/v1/rpc/get_site_stats`,
