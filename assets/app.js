@@ -166,9 +166,10 @@
       }
 
       if (stats) {
-        if (window.SITE_STATS) {
-          window.SITE_STATS.speedTests = stats.total_checks || window.SITE_STATS.speedTests;
-          window.SITE_STATS.lastUpdate = stats.last_check_ago || window.SITE_STATS.lastUpdate;
+        const statObj = Array.isArray(stats) ? stats[0] : stats;
+        if (statObj && window.SITE_STATS) {
+          window.SITE_STATS.speedTests = statObj.total_checks || window.SITE_STATS.speedTests;
+          window.SITE_STATS.lastUpdate = statObj.last_check_ago || window.SITE_STATS.lastUpdate;
         }
       }
       updateStats(); // 重新渲染数字
