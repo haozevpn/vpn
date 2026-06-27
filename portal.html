@@ -1374,6 +1374,63 @@
                 <label class="form-label">订阅监测链接 (极重要，用于系统每30分钟进行节点测速评估)</label>
                 <input class="form-input" id="p-sub" placeholder="https://..." />
               </div>
+
+              <!-- 新增：套餐支持配置 -->
+              <div class="form-group" style="grid-column: 1/-1; border-top: 1px dashed #e2e8f0; padding-top: 16px; margin-top: 8px;">
+                <label class="form-label" style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">📦 套餐支持情况 (将在前台评测报告中展现)</label>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px;">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-monthly" style="width: 16px; height: 16px; cursor: pointer;" /> 月付套餐 (Monthly)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-quarterly" style="width: 16px; height: 16px; cursor: pointer;" /> 季付套餐 (Quarterly)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-halfyear" style="width: 16px; height: 16px; cursor: pointer;" /> 半年付套餐 (Half-Year)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-yearly" style="width: 16px; height: 16px; cursor: pointer;" /> 年付套餐 (Yearly)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-trial" style="width: 16px; height: 16px; cursor: pointer;" /> 提供试用套餐 (Trial)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="p-plan-unlimited" style="width: 16px; height: 16px; cursor: pointer;" /> 不限时套餐 (No Duration)
+                  </label>
+                </div>
+              </div>
+
+              <!-- 起步价格 -->
+              <div class="form-group">
+                <label class="form-label">月付最低起步价 (例: ¥8/月起)</label>
+                <input class="form-input" id="p-price" placeholder="¥8/月起" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">年付最低起步价 (例: ¥80/年起)</label>
+                <input class="form-input" id="p-price-yearly" placeholder="¥80/年起" />
+              </div>
+
+              <!-- 电报客服配置 -->
+              <div class="form-group" style="grid-column: 1/-1; border-top: 1px dashed #e2e8f0; padding-top: 16px; margin-top: 8px;">
+                <label class="form-label" style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">💬 Telegram 售后及客服支持</label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Telegram 公开交流群组链接</label>
+                <input class="form-input" id="p-tg-group" placeholder="https://t.me/your_group" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Telegram 官方公告频道链接</label>
+                <input class="form-input" id="p-tg-channel" placeholder="https://t.me/your_channel" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Telegram 客服机器人/客服号链接</label>
+                <input class="form-input" id="p-customer-bot" placeholder="https://t.me/your_bot" />
+              </div>
+              <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: #334155;">
+                  <input type="checkbox" id="p-ticket-support" style="width: 16px; height: 16px; cursor: pointer;" /> 启用官网工单系统支持
+                </label>
+              </div>
             </div>
             
             <button class="btn-action" style="margin-top: 24px; padding:12px 32px;" type="submit" id="btn-save-profile">保存资料更新</button>
@@ -1647,6 +1704,22 @@
       document.getElementById('p-website').value   = currentMerchant.website_url;
       document.getElementById('p-affiliate').value = currentMerchant.affiliate_url;
       document.getElementById('p-sub').value       = currentMerchant.sub_url || '';
+      
+      // 填充新增的套餐、价格与Telegram数据
+      document.getElementById('p-plan-monthly').checked   = currentMerchant.plan_monthly !== false;
+      document.getElementById('p-plan-quarterly').checked = currentMerchant.plan_quarterly !== false;
+      document.getElementById('p-plan-halfyear').checked  = currentMerchant.plan_halfyear !== false;
+      document.getElementById('p-plan-yearly').checked    = currentMerchant.plan_yearly !== false;
+      document.getElementById('p-plan-trial').checked     = !!currentMerchant.plan_trial;
+      document.getElementById('p-plan-unlimited').checked = !!currentMerchant.plan_unlimited;
+      
+      document.getElementById('p-price').value            = currentMerchant.price || '';
+      document.getElementById('p-price-yearly').value     = currentMerchant.price_yearly || '';
+      
+      document.getElementById('p-tg-group').value         = currentMerchant.tg_group_url || '';
+      document.getElementById('p-tg-channel').value       = currentMerchant.tg_channel_url || '';
+      document.getElementById('p-customer-bot').value     = currentMerchant.customer_bot || '';
+      document.getElementById('p-ticket-support').checked = currentMerchant.ticket_support !== false;
 
       // 4. 切换主面板显示
       document.getElementById('login-section').style.display   = 'none';
@@ -1959,6 +2032,18 @@
             website_url: website,
             affiliate_url: affiliate,
             sub_url: sub || null,
+            plan_monthly: document.getElementById('p-plan-monthly').checked,
+            plan_quarterly: document.getElementById('p-plan-quarterly').checked,
+            plan_halfyear: document.getElementById('p-plan-halfyear').checked,
+            plan_yearly: document.getElementById('p-plan-yearly').checked,
+            plan_trial: document.getElementById('p-plan-trial').checked,
+            plan_unlimited: document.getElementById('p-plan-unlimited').checked,
+            price: document.getElementById('p-price').value.trim() || null,
+            price_yearly: document.getElementById('p-price-yearly').value.trim() || null,
+            tg_group_url: document.getElementById('p-tg-group').value.trim() || null,
+            tg_channel_url: document.getElementById('p-tg-channel').value.trim() || null,
+            customer_bot: document.getElementById('p-customer-bot').value.trim() || null,
+            ticket_support: document.getElementById('p-ticket-support').checked,
             updated_at: new Date().toISOString()
           })
         }
