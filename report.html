@@ -983,16 +983,39 @@
         ? `<a href="${tgChannelUrl}" target="_blank" style="color:var(--color-brand)">查看链接</a>`
         : '<span style="color:var(--color-text-muted)">无</span>';
 
+      // 智能展示人数，不再死板地显示300人模拟数据
       const members = data.tg_group_members || 0;
-      document.getElementById('tg-members').textContent = members > 0 ? `${members} 人` : '300 人 (模拟)';
+      if (members > 0) {
+        document.getElementById('tg-members').textContent = `${members} 人`;
+      } else if (tgGroupUrl || tgChannelUrl) {
+        document.getElementById('tg-members').textContent = '加入群组可见';
+      } else {
+        document.getElementById('tg-members').textContent = '无';
+      }
       
       document.getElementById('ticket-support').innerHTML = getYesNoSpan(data.ticket_support !== undefined ? data.ticket_support : true);
-      document.getElementById('customer-bot').textContent = data.customer_bot || '支持';
+      
+      // 客服机器人/客服号如果是链接则渲染为超链接
+      const customerBot = data.customer_bot || '';
+      if (customerBot) {
+        if (customerBot.startsWith('http') || customerBot.includes('t.me/')) {
+          document.getElementById('customer-bot').innerHTML = `<a href="${customerBot}" target="_blank" style="color:var(--color-brand)">查看链接</a>`;
+        } else {
+          document.getElementById('customer-bot').textContent = customerBot;
+        }
+      } else {
+        document.getElementById('customer-bot').textContent = '暂无';
+      }
 
+      // 智能展示监测时间
       const activeTime = data.tg_active_at || '';
-      document.getElementById('tg-active-time').textContent = activeTime
-        ? new Date(activeTime).toLocaleString('zh-CN', { hour12: false })
-        : '2026-06-27 (电报全天候监测中)';
+      if (activeTime) {
+        document.getElementById('tg-active-time').textContent = new Date(activeTime).toLocaleString('zh-CN', { hour12: false });
+      } else if (tgGroupUrl || tgChannelUrl) {
+        document.getElementById('tg-active-time').textContent = '实时全天候监测中';
+      } else {
+        document.getElementById('tg-active-time').textContent = '无监测';
+      }
     }
 
     async function loadLogsAndCalculate(data) {

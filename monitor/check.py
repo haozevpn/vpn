@@ -84,7 +84,11 @@ async def check_airport(client: httpx.AsyncClient, airport: dict) -> dict:
     if website_url:
         try:
             t0   = time.monotonic()
-            resp = await client.get(website_url, follow_redirects=True)
+            resp = await client.get(
+                website_url, 
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            )
             ms   = round((time.monotonic() - t0) * 1000, 1)
 
             result["http_status"] = resp.status_code
@@ -120,7 +124,11 @@ async def check_airport(client: httpx.AsyncClient, airport: dict) -> dict:
     # ── 2. 订阅链接有效性测试（选配）────────────────────────
     if sub_url:
         try:
-            resp = await client.get(sub_url, follow_redirects=True)
+            resp = await client.get(
+                sub_url, 
+                follow_redirects=True,
+                headers={"User-Agent": "Clash/1.8.0"}
+            )
             # 订阅链接通常返回 base64 编码内容或 YAML，长度应 > 100 字节
             result["sub_ok"] = resp.status_code == 200 and len(resp.text) > 100
         except Exception:
@@ -311,22 +319,42 @@ async def check_telegram_members(client: httpx.AsyncClient, tg_url: str) -> int:
     if not tg_url or "t.me/" not in tg_url:
         return 0
     try:
-        clean_url = tg_url
-        if "/s/" not in tg_url:
-            clean_url = tg_url.replace("t.me/", "t.me/s/")
+        clean_url = tg_url.strip()
         if clean_url.endswith("/"):
             clean_url = clean_url[:-1]
-        
-        resp = await client.get(clean_url, follow_redirects=True, timeout=8.0)
-        if resp.status_code == 200:
-            import re
-            m = re.search(r'([\d\s\xa0\u200b]+)\s*(?:members|subscribers|成员|订阅者)', resp.text, re.I)
-            if m:
-                num_str = m.group(1).replace(" ", "").replace("\xa0", "").replace("\u200b", "").replace(",", "")
-                if num_str.isdigit():
-                    return int(num_str)
+        if not clean_url.startswith("http"):
+            clean_url = "https://" + clean_url
+
+        # First, try standard t.me landing page (works for both public groups & channels)
+        standard_url = clean_url.replace("t.me/s/", "t.me/")
+        try:
+            resp = await client.get(standard_url, follow_redirects=True, timeout=8.0)
+            if resp.status_code == 200:
+                import re
+                m = re.search(r'([\d\s\xa0\u200b,]+)\s*(?:members|subscribers|成员|订阅者)', resp.text, re.I)
+                if m:
+                    num_str = m.group(1).replace(" ", "").replace("\xa0", "").replace("\u200b", "").replace(",", "")
+                    if num_str.isdigit():
+                        return int(num_str)
+        except Exception as e:
+            log.warning(f"直接抓取 standard TG 链接失败 {standard_url}: {e}")
+
+        # Fallback to /s/ preview history page (mainly for public channels)
+        s_url = clean_url if "t.me/s/" in clean_url else clean_url.replace("t.me/", "t.me/s/")
+        try:
+            resp_s = await client.get(s_url, follow_redirects=True, timeout=8.0)
+            if resp_s.status_code == 200:
+                import re
+                m = re.search(r'([\d\s\xa0\u200b,]+)\s*(?:members|subscribers|成员|订阅者)', resp_s.text, re.I)
+                if m:
+                    num_str = m.group(1).replace(" ", "").replace("\xa0", "").replace("\u200b", "").replace(",", "")
+                    if num_str.isdigit():
+                        return int(num_str)
+        except Exception as e:
+            log.warning(f"抓取 /s/ TG 链接失败 {s_url}: {e}")
+
     except Exception as e:
-        log.warning(f"获取 TG 成员数失败 {tg_url}: {e}")
+        log.warning(f"获取 TG 成员数未知异常 {tg_url}: {e}")
     return 0
 
 
@@ -413,18 +441,19 @@ async def main():
             "updated_at":  datetime.now(timezone.utc).isoformat(),
         }
         
-        # 如果存在 tg_group_url 字段并且机场配置了群组，执行人数抓取
-        if has_tg_field and airport.get("tg_group_url"):
+        # 优先使用群组链接，其次使用频道链接进行人数抓取
+        tg_crawl_url = airport.get("tg_group_url") or airport.get("tg_channel_url")
+        if has_tg_field and tg_crawl_url:
             async with httpx.AsyncClient(
                 timeout=10.0,
                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
                 verify=False
             ) as tg_client:
-                members = await check_telegram_members(tg_client, airport["tg_group_url"])
+                members = await check_telegram_members(tg_client, tg_crawl_url)
                 if members > 0:
                     update_data["tg_group_members"] = members
                     update_data["tg_active_at"] = datetime.now(timezone.utc).isoformat()
-                    log.info(f"  TG {airport['name']:12s}  爬取到群组人数: {members} 人")
+                    log.info(f"  TG {airport['name']:12s}  爬取到人数: {members} 人")
 
         supabase.table("airports").update(update_data).eq("id", airport["id"]).execute()
         log.info(f"  SCORE {airport['name']:12s}  {new_score}  ({delta_str})  天数:{days_online}")
