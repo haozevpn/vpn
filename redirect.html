@@ -16,7 +16,7 @@
     <div class="redirect-spinner" id="spinner" aria-label="加载中"></div>
     <h1 class="redirect-title" id="redirect-title">正在跳转...</h1>
     <p class="redirect-desc" id="redirect-desc">即将前往机场官网，请稍候。</p>
-    <div class="redirect-cta" id="redirect-cta" style="display:none;">
+    <div class="redirect-cta" id="redirect-cta">
       <a href="#" id="redirect-manual-link">点击此处手动跳转 →</a>
     </div>
   </div>
@@ -25,20 +25,49 @@
 <script src="assets/data.js?v=202606282"></script>
 <script>
 /* ── 点击中转页核心逻辑 ── */
-(function () {
+(async function () {
   const params    = new URLSearchParams(window.location.search);
   const airportId = params.get('id')      || '';
-  const encodedUrl= params.get('url')     || '';
+  let encodedUrl  = params.get('url')     || '';
   const from      = params.get('from')    || 'unknown';
   const charged   = params.get('charged') || '0';  // 1 = 计费成功, 0 = 防刷跳过
 
-  // 从数据源查找机场信息
+  // 从本地数据源查找默认的机场名称和URL作为首屏渲染及网络故障兜底
   const airports = window.AIRPORTS_DATA || [];
   const airport  = airports.find(a => a.id === airportId);
-  const name     = airport ? airport.name : '目标机场';
+  let name       = airport ? airport.name : '目标机场';
+  let targetUrl  = '';
+
+  // 如果传入了 airportId，尝试从 Supabase 实时拉取该机场最新的官网链接
+  if (airportId) {
+    try {
+      const resp = await fetch(
+        `https://jsdvhryfmuadxaijmsjb.supabase.co/rest/v1/airports?select=name,website_url,affiliate_url&id=eq.${airportId}`,
+        {
+          headers: {
+            'apikey':        'sb_publishable_ufJ4lt-JiL9ONh5X9X6ZHw_PE58RM1F',
+            'Authorization': 'Bearer sb_publishable_ufJ4lt-JiL9ONh5X9X6ZHw_PE58RM1F',
+          }
+        }
+      );
+      if (resp.ok) {
+        const rows = await resp.json();
+        if (rows && rows.length > 0) {
+          const dbRow = rows[0];
+          name = dbRow.name || name;
+          // 优先使用商户更新后的推广/官网链接
+          const dbUrl = dbRow.affiliate_url || dbRow.website_url;
+          if (dbUrl) {
+            encodedUrl = dbUrl;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('中转页实时拉取最新官网链接失败，将使用传入参数或静态兜底', e);
+    }
+  }
 
   // 解码目标 URL
-  let targetUrl = '';
   try {
     targetUrl = decodeURIComponent(encodedUrl);
   } catch (e) {
@@ -67,16 +96,11 @@
       ? `本次跳转已计入有效点击统计。如未自动跳转，请点击下方按钮。`
       : `本次跳转（来源：${from}）。如未自动跳转，请点击下方按钮。`;
 
-  // 3 秒后显示手动跳转按钮（兜底方案）
-  const ctaEl   = document.getElementById('redirect-cta');
+  // 设置手动跳转按钮链接
   const linkEl  = document.getElementById('redirect-manual-link');
   linkEl.href   = targetUrl;
-  linkEl.setAttribute('target', '_blank');
+  linkEl.setAttribute('target', '_self');
   linkEl.setAttribute('rel', 'noopener noreferrer');
-
-  const fallbackTimer = setTimeout(() => {
-    ctaEl.style.display = 'block';
-  }, 3000);
 
   // 上报点击到后端（可选 - 生产阶段启用）
   // fetch('/api/v1/redirect-confirm', {
@@ -89,7 +113,6 @@
   // 立即执行跳转（新 Tab 模式：window.open；同 Tab 模式：location.href）
   // 此处选择同 Tab 跳转，与"官网"按钮在新 Tab 打开不同
   setTimeout(() => {
-    clearTimeout(fallbackTimer);
     window.location.href = targetUrl;
   }, 800);
 
