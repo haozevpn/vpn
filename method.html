@@ -360,6 +360,12 @@
               <td>标签造假或实测与申报不符，移除标签加分并触发信誉扣分</td>
               <td>IEPL/CN2专线+1.5分；AnyTLS/直连中转+0.8分；流媒体解锁+0.5分</td>
             </tr>
+            <tr style="background:#fff7ed">
+              <td><strong style="color:#c2410c">¥ 推广余额不足</strong></td>
+              <td>推广账户中的实时可用余额低于一次点击竞价费用（默认 0.50 元）</td>
+              <td><strong style="color:#c2410c">直接扣减 30 分原始评分</strong>，使最终显示评分下降约 10 分，排名降到底部</td>
+              <td><strong>逐渐恢复机制</strong>：充值后限制最高上涨速度为每天 3 分，防止频繁欠费与突发性跳分</td>
+            </tr>
             <tr style="background:#fef2f2">
               <td><strong style="color:#dc2626">⚠ 风险预警</strong></td>
               <td>跑路信号：官网连续 3 天不可达、TG 群解散、用户集中投诉无回复</td>
@@ -469,8 +475,8 @@
 
       <div class="method-faq-list">
         <details class="faq-item">
-          <summary>付费能提高排名吗？</summary>
-          <p>不能。排名完全由自动化监测数据决定，本站商业模式为 CPC 点击广告（机场出价竞争首位广告展示位），与可靠性评分完全隔离。评分高低只取决于机场的实际表现数据。</p>
+          <summary>付费能提高排名吗？账户余额不足会有什么影响？</summary>
+          <p>不能。所有机场的评分指标公式完全一致。但如果推广账户余额不足（低于单次点击出价，即少于 0.50 元），系统会判定该商户处于不活跃推广状态，并立刻扣减 30 分原始分（最终评分约降 10 分）。充值到账后，评分将以每天最多 3 分的速度逐渐恢复到真实水平，以惩罚频繁断交与欠费的行为。</p>
         </details>
         <details class="faq-item">
           <summary>新入驻机场初始分是多少？</summary>

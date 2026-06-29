@@ -133,18 +133,54 @@ function computeScore(airport, logs) {
   const category = Array.isArray(airport.category) ? airport.category : [];
   if (category.includes('risk')) rawScore = Math.max(0, rawScore - 50);
 
-  const newScore = Math.round((58.0 + rawScore * 0.34) * 100) / 100;
-  const oldScore = parseFloat(airport.score) || 75.0;
-  const delta    = Math.round((newScore - oldScore) * 100) / 100;
+  // ── 余额不足扣分 ─────────────────────────────────────────
+  // 商户余额不足以支付一次点击费用（或余额小于等于0）时，扣除 30 分原始分，致使最终评分下降约 10 分
+  const balance = parseFloat(airport.balance || 0);
+  const bidPrice = parseFloat(airport.bid_price || 0.50);
+  const isOutofBalance = balance < bidPrice;
+  if (isOutofBalance) {
+    rawScore = Math.max(0, rawScore - 30);
+  }
+
+  // ── 最终分值压缩到 58~92 区间 ────────────────────────
+  const newScoreCalculated = Math.round((58.0 + rawScore * 0.34) * 100) / 100;
+
+  // ── 计算变化量与逐渐恢复限制 ───────────────────────────────
+  const oldScore = parseFloat(airport.score);
+  let newScore = newScoreCalculated;
+  let isRecovering = false;
+
+  if (!isNaN(oldScore) && oldScore > 0 && newScoreCalculated > oldScore) {
+    const timeElapsedMs = Date.now() - new Date(airport.updated_at || Date.now()).getTime();
+    const timeElapsedDays = Math.min(1.0, Math.max(0, timeElapsedMs / (1000 * 60 * 60 * 24)));
+    const maxIncrease = timeElapsedDays * 3.0; // 每天最多涨3.0分
+    if (newScoreCalculated > oldScore + maxIncrease) {
+      newScore = Math.round((oldScore + maxIncrease) * 100) / 100;
+      isRecovering = true;
+    }
+  }
+
+  const delta = Math.round((newScore - (isNaN(oldScore) ? 75.0 : oldScore)) * 100) / 100;
   const deltaStr = delta > 0 ? `+${delta.toFixed(2)}` : delta < 0 ? delta.toFixed(2) : '+0.00';
-  return { newScore, deltaStr, webAvailRate, subAvailRate, daysOnline };
+
+  return {
+    newScore,
+    deltaStr,
+    webAvailRate,
+    subAvailRate,
+    speedScore,
+    priceScore,
+    daysOnline,
+    isOutofBalance,
+    isRecovering,
+  };
 }
 
 async function main() {
   // ── STEP 1: 读取所有 active 机场 ─────────────────────────
   log('读取数据库中的机场列表...');
   const resp = await fetch(
-    `${SUPABASE_URL}/rest/v1/airports?select=id,name,website_url,sub_url,days_online,category,score,price,tags,created_at&status=eq.active`,
+    `${SUPABASE_URL}/rest/v1/airports?select=id,name,website_url,sub_url,days_online,category,score,price,tags,created_at,balance,bid_price,updated_at&status=eq.active`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   );
   const airports = await resp.json();
@@ -196,7 +232,7 @@ async function main() {
     );
     const logs = await logsResp.json();
 
-    const { newScore, deltaStr, webAvailRate, subAvailRate, daysOnline } = computeScore(airport, logs);
+    const { newScore, deltaStr, webAvailRate, subAvailRate, daysOnline, isOutofBalance, isRecovering } = computeScore(airport, logs);
 
     await fetch(
       `${SUPABASE_URL}/rest/v1/airports?id=eq.${airport.id}`,
@@ -208,13 +244,14 @@ async function main() {
     );
 
     const arrow = deltaStr.startsWith('+') && deltaStr !== '+0.00' ? '↑' : deltaStr.startsWith('-') ? '↓' : '→';
+    const balanceFlag = isOutofBalance ? ' [欠费]' : (isRecovering ? ' [恢复中]' : '');
     log(
       `  ${arrow} ${(airport.name || airport.id).padEnd(12)} ` +
       `评分: ${newScore.toFixed(2).padStart(5)} (${deltaStr})  ` +
       `天数: ${String(daysOnline).padStart(3)}天  ` +
       `官网: ${(webAvailRate*100).toFixed(0).padStart(3)}%  ` +
       `订阅: ${(subAvailRate*100).toFixed(0).padStart(3)}%  ` +
-      `样本: ${Array.isArray(logs) ? logs.length : 0}`
+      `样本: ${Array.isArray(logs) ? logs.length : 0}${balanceFlag}`
     );
   }
 
