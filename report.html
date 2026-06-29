@@ -887,6 +887,42 @@
       await loadLogsAndCalculate(dbData || localData);
     });
 
+    function reportClickAndRedirect(data) {
+      const airportId = data.id;
+      const targetUrl = data.affiliate_url || data.website_url || data.url || '';
+      const CLICK_COOLDOWN_MS = 5 * 60 * 1000; // 5分钟防刷冷却
+      const now    = Date.now();
+      const key    = `jct_click_${airportId}`;
+      const last   = parseInt(localStorage.getItem(key) || '0', 10);
+      const isCold = (now - last) > CLICK_COOLDOWN_MS;
+
+      if (isCold) {
+        localStorage.setItem(key, now);
+        // 上报点击到 Supabase
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+          fetch(`${SUPABASE_URL}/rest/v1/click_logs`, {
+            method: 'POST',
+            headers: {
+              'Content-Type':  'application/json',
+              'apikey':         SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Prefer':        'return=minimal',
+            },
+            body: JSON.stringify({
+              airport_id: airportId,
+              from_page:  'report_page',
+              charged:    true,
+              amount:     0.50,
+            }),
+            keepalive: true,
+          }).catch(() => {});
+        }
+      }
+
+      const redirectUrl = `/redirect.html?id=${airportId}&url=${encodeURIComponent(targetUrl)}&from=report_page&charged=${isCold ? 1 : 0}`;
+      window.location.href = redirectUrl;
+    }
+
     function renderStaticInfo(data) {
       document.getElementById('airport-name-title').textContent = data.name + ' 机场评测报告';
       document.getElementById('airport-conclusion-text').textContent = data.highlight || '高速节点';
@@ -894,8 +930,7 @@
       
       // 注册跳转链接绑定
       document.getElementById('btn-visit-site').onclick = () => {
-        const targetUrl = data.affiliate_url || data.website_url || data.url || '';
-        window.location.href = `/redirect.html?id=${data.id}&url=${encodeURIComponent(targetUrl)}`;
+        reportClickAndRedirect(data);
       };
 
       // 综合评分显示与分级
