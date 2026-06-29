@@ -286,11 +286,38 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
         if "risk" in category:
             raw_score = max(0.0, raw_score - 50.0)
 
-        # 压缩到 58~92 区间（90分以上需要长期高质量运营才能达到）
-        new_score = round(58.0 + raw_score * 0.34, 2)
+        # 扣分：推广余额不足
+        balance = float(airport.get("balance") or 0.0)
+        bid_price = float(airport.get("bid_price") or 0.50)
+        is_outof_balance = balance < bid_price
+        if is_outof_balance:
+            raw_score = max(0.0, raw_score - 30.0)
 
-        old_score = float(airport.get("score") or 75.0)
-        delta     = new_score - old_score
+        # 压缩到 58~92 区间（90分以上需要长期高质量运营才能达到）
+        new_score_calculated = round(58.0 + raw_score * 0.34, 2)
+
+        # 逐渐恢复限制
+        old_score = float(airport.get("score") or 0.0)
+        new_score = new_score_calculated
+        is_recovering = False
+
+        if old_score > 0 and new_score_calculated > old_score:
+            updated_at_str = airport.get("updated_at")
+            last_update = datetime.now(timezone.utc)
+            if updated_at_str:
+                try:
+                    clean_up_str = updated_at_str.replace("Z", "+00:00").replace("z", "+00:00")
+                    last_update = datetime.fromisoformat(clean_up_str)
+                except Exception:
+                    pass
+            time_elapsed_ms = (datetime.now(timezone.utc) - last_update).total_seconds() * 1000
+            time_elapsed_days = min(1.0, max(0.0, time_elapsed_ms / (1000 * 60 * 60 * 24)))
+            max_increase = time_elapsed_days * 3.0
+            if new_score_calculated > old_score + max_increase:
+                new_score = round(old_score + max_increase, 2)
+                is_recovering = True
+
+        delta     = new_score - (old_score if old_score > 0 else 75.0)
         if delta > 0:
             delta_str = f"+{delta:.2f}"
         elif delta < 0:
@@ -299,11 +326,12 @@ def compute_score(airport_id: str, airport: dict) -> tuple:
             delta_str = "+0.00"
 
         no_data_flag = "[初始]" if not has_logs else ""
+        balance_flag = " [欠费]" if is_outof_balance else (" [恢复中]" if is_recovering else "")
         log.info(
             f"  {airport_id}: 评分 {new_score:.2f} ({delta_str})  "
             f"天数:{days_online}天  官网:{web_avail_rate:.0%}  订阅:{sub_avail_rate:.0%}  "
             f"速度:{speed_score:.1f}  价格:{price_score:.1f}  标签:{tag_score:.1f}  "
-            f"样本:{len(rows)} {no_data_flag}"
+            f"样本:{len(rows)} {no_data_flag}{balance_flag}"
         )
         return new_score, delta_str, days_online
 
@@ -371,7 +399,7 @@ async def main():
     try:
         airports = (
             supabase.table("airports")
-            .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags, created_at, tg_group_url")
+            .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags, created_at, tg_group_url, balance, bid_price, updated_at")
             .eq("status", "active")
             .execute()
             .data
@@ -380,7 +408,7 @@ async def main():
         log.warning("数据库尚无 tg_group_url 字段，使用基础查询字段进行降级。")
         airports = (
             supabase.table("airports")
-            .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags, created_at")
+            .select("id, name, website_url, sub_url, status, days_online, category, score, price, tags, created_at, balance, bid_price, updated_at")
             .eq("status", "active")
             .execute()
             .data
